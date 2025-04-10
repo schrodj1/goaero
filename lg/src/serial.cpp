@@ -88,8 +88,8 @@ int main(int argc, char** argv) {
                 if (ss.peek() == ' ') ss.ignore();  // Ignore spaces
             }
 
-            // Only proceed if we have exactly 8 values
-            if (sensorValues.size() == 8) {
+            // Only proceed if we have exactly 10 values
+            if (sensorValues.size() == 10) {
                 // Create a message to publish
                 std_msgs::Int32MultiArray msg;
                 msg.data = sensorValues;
