@@ -6,7 +6,9 @@
 #include <cstring>
 #include <sstream>
 #include <vector>
+#include <string>
 
+// Function to initialize the serial port
 int initSerial(int serialPort) {
     struct termios options;
 
@@ -46,8 +48,6 @@ int main(int argc, char** argv) {
 
     // Create a publisher to publish sensor data
     ros::Publisher sensor_pub = nh.advertise<std_msgs::Int32MultiArray>("sensor_values", 10);
-    
-    
 
     // Open the serial port
     const char *portName = "/dev/ttyACM0";
@@ -66,36 +66,39 @@ int main(int argc, char** argv) {
 
     std::cout << "Serial port opened. Waiting for data..." << std::endl;
 
-    char rx_buf[256];  // Buffer for incoming data
+    std::string buffer;  // Buffer to store incoming data
+    char rx_char;        // Character read from the serial port
 
     ros::Rate loop_rate(10);  // Loop rate at 10 Hz
 
     while (ros::ok()) {
-        memset(rx_buf, 0, sizeof(rx_buf));  // Clear the buffer
+        // Read one character at a time
+        while (read(serialPort, &rx_char, 1) > 0) {
+            if (rx_char == '\n') {
+                // Process the complete message
+                std::stringstream ss(buffer);
+                std::vector<int> sensorValues;
+                int value;
 
-        int bytesRead = read(serialPort, rx_buf, sizeof(rx_buf) - 1);  // Read data from the serial port
-        if (bytesRead > 0) {
-            rx_buf[bytesRead] = '\0';  // Null-terminate the string
-            std::cout << "Received: " << rx_buf << std::endl;
+                while (ss >> value) {
+                    sensorValues.push_back(value);
+                }
 
-            // Parse the received data into integers
-            std::vector<int> sensorValues;
-            std::stringstream ss(rx_buf);
-            int value;
+                // Only proceed if we have exactly 10 values
+                if (sensorValues.size() == 8) {
+                    // Create a message to publish
+                    std_msgs::Int32MultiArray msg;
+                    msg.data = sensorValues;
 
-            while (ss >> value) {
-                sensorValues.push_back(value);
-                if (ss.peek() == ' ') ss.ignore();  // Ignore spaces
-            }
+                    // Publish the sensor values to the ROS topic
+                    sensor_pub.publish(msg);
+                } else {
+                    ROS_WARN("Received incomplete or invalid data: %s", buffer.c_str());
+                }
 
-            // Only proceed if we have exactly 10 values
-            if (sensorValues.size() == 10) {
-                // Create a message to publish
-                std_msgs::Int32MultiArray msg;
-                msg.data = sensorValues;
-
-                // Publish the sensor values to the ROS topic
-                sensor_pub.publish(msg);
+                buffer.clear();  // Clear the buffer for the next message
+            } else {
+                buffer += rx_char;  // Append character to the buffer
             }
         }
 
