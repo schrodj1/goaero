@@ -33,24 +33,24 @@ void sensorCallback(const std_msgs::Int32MultiArray::ConstPtr& msg) {
             switch (i) {
                 case 0:
                     range_pub_leg1.publish(range_msg);
-                    ROS_INFO("Published range for Leg 1: %.2f meters", range);
+                    // ROS_INFO("Published range for Leg 1: %.2f meters", range);
                     break;
                 case 1:
                     range_pub_leg2.publish(range_msg);
-                    ROS_INFO("Published range for Leg 2: %.2f meters", range);
+                    // ROS_INFO("Published range for Leg 2: %.2f meters", range);
                     break;
                 case 2:
                     range_pub_leg3.publish(range_msg);
-                    ROS_INFO("Published range for Leg 3: %.2f meters", range);
+                    // ROS_INFO("Published range for Leg 3: %.2f meters", range);
                     break;
                 case 3:
                     range_pub_leg4.publish(range_msg);
-                    ROS_INFO("Published range for Leg 4: %.2f meters", range);
+                    // ROS_INFO("Published range for Leg 4: %.2f meters", range);
                     break;
             }
         }
     } else {
-        ROS_WARN("Received sensor data with less than 4 values. Ignoring this message.");
+        // ROS_WARN("Received sensor data with less than 4 values. Ignoring this message.");
     }
 }
 
