@@ -17,17 +17,17 @@ void sensorCallback(const std_msgs::Int32MultiArray::ConstPtr& msg) {
             int sensor_value = msg->data[i];
 
             // Convert the received value to meters (assuming the sensor value is in millimeters)
-            float range = static_cast<float>(sensor_value) / 100.0f;  // Convert to meters
+            float range = static_cast<float>(sensor_value) / 1000.0f;  // Convert to meters
 
             // Create a Range message
             sensor_msgs::Range range_msg;
             range_msg.header.stamp = ros::Time::now();
-            range_msg.header.frame_id = "sensor_frame";  // Set the reference frame name (change as needed)
-            range_msg.radiation_type = sensor_msgs::Range::ULTRASOUND;  // Assuming ultrasonic sensor type
-            range_msg.field_of_view = 0.1;  // Set the field of view (adjust based on sensor type)
-            range_msg.min_range = 0.02;     // Set the minimum measurable range (e.g., 2 cm)
-            range_msg.max_range = 4.0;      // Set the maximum measurable range (e.g., 4 meters)
-            range_msg.range = range;        // Set the range value in meters
+            range_msg.header.frame_id = "tof_sensor_frame";  // Set the reference frame name (change as needed)
+            range_msg.radiation_type = sensor_msgs::Range::INFRARED;  // ToF sensors use infrared radiation
+            range_msg.field_of_view = 0.05;  // Set the field of view (adjust based on VL53L4CB specs)
+            range_msg.min_range = 0.01;      // Set the minimum measurable range (e.g., 1 cm)
+            range_msg.max_range = 4.0;       // Set the maximum measurable range (e.g., 4 meters)
+            range_msg.range = range;         // Set the range value in meters
 
             // Publish the Range message to the correct topic based on the index
             switch (i) {
