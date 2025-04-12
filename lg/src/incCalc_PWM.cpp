@@ -7,6 +7,8 @@
 #include <iomanip>
 
 constexpr double LINK_LENGTH_METERS = 3.0 * 0.0254;  // 3 inches in meters
+constexpr double MAX_ANGLE_DEG = 30.0;
+constexpr double MIN_ANGLE_DEG = -30.0;
 
 struct Leg {
     std::string range_topic;
@@ -34,48 +36,54 @@ void calculateLegCommands() {
     if (!std::all_of(legs.begin(), legs.end(), [](const Leg& l){ return l.received; }))
         return;
 
-    // Get three points for the plane (we’ll use legs 0, 1, 2)
+    // 1. Fit a plane to the terrain
     auto& p1 = legs[0];
     auto& p2 = legs[1];
     auto& p3 = legs[2];
 
-    // Compute two vectors on the plane
     double v1[3] = {p2.x - p1.x, p2.y - p1.y, p2.z - p1.z};
     double v2[3] = {p3.x - p1.x, p3.y - p1.y, p3.z - p1.z};
 
-    // Compute normal vector (cross product)
     double normal[3] = {
         v1[1]*v2[2] - v1[2]*v2[1],
         v1[2]*v2[0] - v1[0]*v2[2],
         v1[0]*v2[1] - v1[1]*v2[0]
     };
 
-    // Plane: ax + by + cz + d = 0
     double a = normal[0];
     double b = normal[1];
     double c = normal[2];
     double d = -(a * p1.x + b * p1.y + c * p1.z);
 
-    // Reference z value at leg1's position on the plane
-    double z_ref = -(a * p1.x + b * p1.y + d) / c;
+    // 2. Find leg with smallest range (i.e., highest z = most ground contact)
+    size_t ref_index = 0;
+    double min_range = -legs[0].z;  // z is negative
+    for (size_t i = 1; i < legs.size(); ++i) {
+        if (-legs[i].z < min_range) {
+            min_range = -legs[i].z;
+            ref_index = i;
+        }
+    }
+    const auto& ref_leg = legs[ref_index];
+    double z_ref = -(a * ref_leg.x + b * ref_leg.y + d) / c;
 
+    // 3. Publish PWM for each leg
     for (size_t i = 0; i < legs.size(); ++i) {
         auto& leg = legs[i];
 
-        // Terrain height predicted at this leg position
         double z_plane = -(a * leg.x + b * leg.y + d) / c;
-
-        // How much leg needs to move to match the slope
         double delta_z = z_plane - z_ref;
 
-        // Convert delta_z to leg angle using link length
-        double angle_rad = atan2(delta_z / LINK_LENGTH_METERS, 1.0);
-        double angle_deg = angle_rad * 180.0 / M_PI;
+        double angle_deg;
+        if (i == ref_index) {
+            angle_deg = MAX_ANGLE_DEG;  // Full extension
+        } else {
+            // delta_z is the difference in terrain height relative to the "touchdown leg"
+            double angle_rad = atan2(delta_z / LINK_LENGTH_METERS, 1.0);
+            angle_deg = MAX_ANGLE_DEG - (angle_rad * 180.0 / M_PI);
+        }
 
-        // Clamp to safe servo angle range
-        const double angleMin = -30.0;
-        const double angleMax = 30.0;
-        angle_deg = std::clamp(angle_deg, angleMin, angleMax);
+        angle_deg = std::clamp(angle_deg, MIN_ANGLE_DEG, MAX_ANGLE_DEG);
 
         // Set per-leg PWM range
         int pwmMin, pwmMax;
@@ -87,18 +95,18 @@ void calculateLegCommands() {
             pwmMax = 2080;
         }
 
-        // Map angle to PWM for this leg
+        // Map angle to PWM
         int pwm = static_cast<int>(
-            pwmMin + ((angle_deg - angleMin) / (angleMax - angleMin)) * (pwmMax - pwmMin)
+            pwmMin + ((angle_deg - MIN_ANGLE_DEG) / (MAX_ANGLE_DEG - MIN_ANGLE_DEG)) * (pwmMax - pwmMin)
         );
 
         std_msgs::UInt16 pwm_msg;
         pwm_msg.data = pwm;
         leg.pub.publish(pwm_msg);
 
-        // Debug output
         ROS_INFO_STREAM(std::fixed << std::setprecision(2)
             << "Leg " << i+1
+            << (i == ref_index ? " [REFERENCE]" : "")
             << " | delta_z = " << delta_z << " m"
             << " | angle = " << angle_deg << "°"
             << " | pwm = " << pwm);
@@ -109,7 +117,6 @@ int main(int argc, char** argv) {
     ros::init(argc, argv, "terrain_leg_controller");
     ros::NodeHandle nh;
 
-    // Set up subscribers and publishers
     for (size_t i = 0; i < legs.size(); ++i) {
         legs[i].sub = nh.subscribe<sensor_msgs::Range>(
             legs[i].range_topic, 1,
