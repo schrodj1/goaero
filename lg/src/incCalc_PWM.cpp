@@ -4,12 +4,13 @@
 #include <vector>
 #include <cmath>
 #include <algorithm>
+#include <iomanip>
 
-constexpr double LINK_LENGTH_INCHES = 3.0;
+constexpr double LINK_LENGTH_METERS = 3.0 * 0.0254;  // 3 inches in meters
 
 struct Leg {
     std::string range_topic;
-    std::string pwm_msg;
+    std::string pwm_topic;
     double x, y;    // leg position in body frame
     double z;       // terrain height (from range)
     bool received = false;
@@ -55,36 +56,52 @@ void calculateLegCommands() {
     double c = normal[2];
     double d = -(a * p1.x + b * p1.y + c * p1.z);
 
-    // Target Z offset at each leg position (on the plane)
-    double z_ref = -(a * p1.x + b * p1.y + d) / c;  // reference z at leg1
+    // Reference z value at leg1's position on the plane
+    double z_ref = -(a * p1.x + b * p1.y + d) / c;
 
     for (size_t i = 0; i < legs.size(); ++i) {
         auto& leg = legs[i];
-        double z_plane = -(a * leg.x + b * leg.y + d) / c;
-        double delta_z = z_plane - z_ref;  // relative vertical offset
 
-        // Compute angle from delta_z (Y travel), X = 0 assumed
-        double angle_rad = atan2(delta_z / LINK_LENGTH_INCHES, 1.0);
+        // Terrain height predicted at this leg position
+        double z_plane = -(a * leg.x + b * leg.y + d) / c;
+
+        // How much leg needs to move to match the slope
+        double delta_z = z_plane - z_ref;
+
+        // Convert delta_z to leg angle using link length
+        double angle_rad = atan2(delta_z / LINK_LENGTH_METERS, 1.0);
         double angle_deg = angle_rad * 180.0 / M_PI;
 
-        // Clamp angle to safe range
+        // Clamp to safe servo angle range
         const double angleMin = -30.0;
         const double angleMax = 30.0;
-        if (angle_deg < angleMin) angle_deg = angleMin;
-        if (angle_deg > angleMax) angle_deg = angleMax;
+        angle_deg = std::clamp(angle_deg, angleMin, angleMax);
 
-        // Convert angle to PWM (900–2000 µs)
-        const int pwmMin = 900;
-        const int pwmMax = 2000;
+        // Set per-leg PWM range
+        int pwmMin, pwmMax;
+        if (i == 1 || i == 2) {  // Legs 2 & 3 = reversed
+            pwmMin = 2080;
+            pwmMax = 896;
+        } else {                // Legs 1 & 4 = normal
+            pwmMin = 896;
+            pwmMax = 2080;
+        }
 
+        // Map angle to PWM for this leg
         int pwm = static_cast<int>(
-        pwmMin + ((angle_deg - angleMin) / (angleMax - angleMin)) * (pwmMax - pwmMin)
+            pwmMin + ((angle_deg - angleMin) / (angleMax - angleMin)) * (pwmMax - pwmMin)
         );
 
         std_msgs::UInt16 pwm_msg;
         pwm_msg.data = pwm;
         leg.pub.publish(pwm_msg);
 
+        // Debug output
+        ROS_INFO_STREAM(std::fixed << std::setprecision(2)
+            << "Leg " << i+1
+            << " | delta_z = " << delta_z << " m"
+            << " | angle = " << angle_deg << "°"
+            << " | pwm = " << pwm);
     }
 }
 
@@ -98,7 +115,7 @@ int main(int argc, char** argv) {
             legs[i].range_topic, 1,
             boost::bind(&rangeCallback, _1, i)
         );
-        legs[i].pub = nh.advertise<std_msgs::UInt16>(legs[i].pwm_msg, 1);
+        legs[i].pub = nh.advertise<std_msgs::UInt16>(legs[i].pwm_topic, 1);
     }
 
     ros::Rate rate(10);
