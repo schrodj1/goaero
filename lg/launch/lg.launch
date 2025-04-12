@@ -3,7 +3,7 @@
     <node name="master" pkg="lg" type="master" output="screen"/>
     <node name="serial" pkg="lg" type="serial" output="screen"/>
     <node name="rangefinder" pkg="lg" type="rangefinder" output="screen"/>
-    <node name="incCalc_PWM" pkg="lg" type="incCalc" output="screen"/>
+    <node name="incCalc_PWM" pkg="lg" type="incCalc_PWM" output="screen"/>
     <node name="comProc" pkg="lg" type="rangefinder" output="screen"/>   
     <!-- <node name="actuator" pkg="lg" type="actuator" output="screen"/>    -->
     <node name="Maestro" pkg="lg" type="Maestro" output="screen"/>    
