@@ -9,7 +9,7 @@ constexpr double LINK_LENGTH_INCHES = 3.0;
 
 struct Leg {
     std::string range_topic;
-    std::string pwm;
+    std::string pwm_msg;
     double x, y;    // leg position in body frame
     double z;       // terrain height (from range)
     bool received = false;
@@ -98,7 +98,7 @@ int main(int argc, char** argv) {
             legs[i].range_topic, 1,
             boost::bind(&rangeCallback, _1, i)
         );
-        legs[i].pub = nh.advertise<std_msgs::UInt16>(legs[i].pwm, 1);
+        legs[i].pub = nh.advertise<std_msgs::UInt16>(legs[i].pwm_msg, 1);
     }
 
     ros::Rate rate(10);

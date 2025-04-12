@@ -87,13 +87,13 @@ int main(int argc, char **argv) {
     }
 
     // Set up subscribers for PWM signals
-    ros::Subscriber sub_leg1 = nh.subscribe<std_msgs::UInt16>("leg1/pwm", 1000,
+    ros::Subscriber sub_leg1 = nh.subscribe<std_msgs::UInt16>("leg1/pwm_msg", 1000,
         boost::bind(&pwmCallback, _1, 0));
-    ros::Subscriber sub_leg2 = nh.subscribe<std_msgs::UInt16>("leg2/pwm", 1000,
+    ros::Subscriber sub_leg2 = nh.subscribe<std_msgs::UInt16>("leg2/pwm_msg", 1000,
         boost::bind(&pwmCallback, _1, 1));
-    ros::Subscriber sub_leg3 = nh.subscribe<std_msgs::UInt16>("leg3/pwm", 1000,
+    ros::Subscriber sub_leg3 = nh.subscribe<std_msgs::UInt16>("leg3/pwm_msg", 1000,
         boost::bind(&pwmCallback, _1, 2));
-    ros::Subscriber sub_leg4 = nh.subscribe<std_msgs::UInt16>("leg4/pwm", 1000,
+    ros::Subscriber sub_leg4 = nh.subscribe<std_msgs::UInt16>("leg4/pwm_msg", 1000,
         boost::bind(&pwmCallback, _1, 3));
 
     // Enter the ROS event loop

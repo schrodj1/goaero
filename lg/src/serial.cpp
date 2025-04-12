@@ -50,7 +50,7 @@ int main(int argc, char** argv) {
     ros::Publisher sensor_pub = nh.advertise<std_msgs::Int32MultiArray>("sensor_values", 10);
 
     // Open the serial port
-    const char *portName = "/dev/ttyACM2";
+    const char *portName = "/dev/ttyACM0";
     int serialPort = open(portName, O_RDWR | O_NOCTTY | O_NDELAY);
 
     if (serialPort == -1) {
