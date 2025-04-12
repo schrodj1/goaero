@@ -35,8 +35,8 @@ add_executable(serial src/serial.cpp)
 target_link_libraries(serial ${catkin_LIBRARIES})
 
 # Add executable for incline calculator
-add_executable(IncCalc_PWM src/IncCalc_PWM.cpp)
-target_link_libraries(IncCalc_PWM ${catkin_LIBRARIES})
+add_executable(incCalc_PWM src/incCalc_PWM.cpp)
+target_link_libraries(incCalc_PWM ${catkin_LIBRARIES})
 
 # Add executable for comProc
 add_executable(comProc src/comProc.cpp)
