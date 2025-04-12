@@ -18,10 +18,10 @@ struct Leg {
 };
 
 std::vector<Leg> legs = {
-    {"leg1/range", "leg1/command",  0.3,  0.3},
-    {"leg2/range", "leg2/command",  0.3, -0.3},
-    {"leg3/range", "leg3/command", -0.3,  0.3},
-    {"leg4/range", "leg4/command", -0.3, -0.3}
+    {"leg1/range", "leg1/pwm_msg",  0.3,  0.3},
+    {"leg2/range", "leg2/pwm_msg",  0.3, -0.3},
+    {"leg3/range", "leg3/pwm_msg", -0.3,  0.3},
+    {"leg4/range", "leg4/pwm_msg", -0.3, -0.3}
 };
 
 void rangeCallback(const sensor_msgs::Range::ConstPtr& msg, int index) {
