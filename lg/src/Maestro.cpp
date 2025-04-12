@@ -33,7 +33,7 @@ bool setServoTarget(int fd, uint8_t channel, uint16_t target) {
 
 // Callback function to handle incoming PWM signals
 void pwmCallback(const std_msgs::UInt16::ConstPtr& msg, int channel) {
-    uint16_t pwm = msg->data; // PWM value received from the topic
+    uint16_t pwm = msg->data*4; // PWM value received from the topic
     if (!setServoTarget(fd, channel, pwm)) {
         ROS_ERROR("Failed to send PWM to servo on channel %d", channel);
     } else {
