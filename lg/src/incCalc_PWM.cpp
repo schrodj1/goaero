@@ -28,7 +28,7 @@ std::vector<Leg> legs = {
 };
 
 void rangeCallback(const sensor_msgs::Range::ConstPtr& msg, int index) {
-    legs[index].z = -msg->range;  // terrain is below the body
+    legs[index].z = -msg->range;  // terrain height: negative range
     legs[index].received = true;
 }
 
@@ -36,7 +36,7 @@ void calculateLegCommands() {
     if (!std::all_of(legs.begin(), legs.end(), [](const Leg& l){ return l.received; }))
         return;
 
-    // 1. Fit a plane to the terrain
+    // 1. Fit a plane to the terrain using 3 legs
     auto& p1 = legs[0];
     auto& p2 = legs[1];
     auto& p3 = legs[2];
@@ -55,19 +55,21 @@ void calculateLegCommands() {
     double c = normal[2];
     double d = -(a * p1.x + b * p1.y + c * p1.z);
 
-    // 2. Find leg with smallest range (i.e., highest z = most ground contact)
+    // 2. Use the leg with the highest range (farthest from ground) as reference
     size_t ref_index = 0;
-    double min_range = -legs[0].z;  // z is negative
+    double max_range = -legs[0].z;  // undo negative z
     for (size_t i = 1; i < legs.size(); ++i) {
-        if (-legs[i].z < min_range) {
-            min_range = -legs[i].z;
+        double current_range = -legs[i].z;
+        if (current_range > max_range) {
+            max_range = current_range;
             ref_index = i;
         }
     }
+
     const auto& ref_leg = legs[ref_index];
     double z_ref = -(a * ref_leg.x + b * ref_leg.y + d) / c;
 
-    // 3. Publish PWM for each leg
+    // 3. Calculate and publish leg commands
     for (size_t i = 0; i < legs.size(); ++i) {
         auto& leg = legs[i];
 
@@ -78,7 +80,6 @@ void calculateLegCommands() {
         if (i == ref_index) {
             angle_deg = MAX_ANGLE_DEG;  // Full extension
         } else {
-            // delta_z is the difference in terrain height relative to the "touchdown leg"
             double angle_rad = atan2(delta_z / LINK_LENGTH_METERS, 1.0);
             angle_deg = MAX_ANGLE_DEG - (angle_rad * 180.0 / M_PI);
         }
@@ -88,11 +89,11 @@ void calculateLegCommands() {
         // Set per-leg PWM range
         int pwmMin, pwmMax;
         if (i == 1 || i == 2) {  // Legs 2 & 3 = reversed
-            pwmMin = 2080;
-            pwmMax = 896;
+            pwmMin = 1880;
+            pwmMax = 1096;
         } else {                // Legs 1 & 4 = normal
-            pwmMin = 896;
-            pwmMax = 2080;
+            pwmMin = 1096;
+            pwmMax = 1880;
         }
 
         // Map angle to PWM
@@ -107,6 +108,7 @@ void calculateLegCommands() {
         ROS_INFO_STREAM(std::fixed << std::setprecision(2)
             << "Leg " << i+1
             << (i == ref_index ? " [REFERENCE]" : "")
+            << " | range = " << -leg.z << " m"
             << " | delta_z = " << delta_z << " m"
             << " | angle = " << angle_deg << "°"
             << " | pwm = " << pwm);
