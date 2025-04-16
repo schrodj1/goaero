@@ -50,8 +50,9 @@ void calculatelegCommands() {
 
     // find servo angles using closest range as 30 degrees
     int angles[4];
+    int height_diff;
     for (size_t i = 0; i < legs.size(); ++i){
-        int height_diff = -legs[i].z - min_range;
+        height_diff = -legs[i].z - min_range;
         if (i == ref_index){
             angles[i] = MIN_ANGLE_DEG;
         } else {
@@ -65,6 +66,18 @@ void calculatelegCommands() {
 
     // Calculate and publish leg commands
     for (size_t i = 0; i < legs.size(); ++i) {
+
+        int angles[4];
+        int height_diff[4];
+        height_diff[i] = -legs[i].z - min_range;
+        if (i == ref_index){
+            angles[i] = MIN_ANGLE_DEG;
+        } else {
+            angles[i] = MIN_ANGLE_DEG- ((180/M_PI)*(acos(height_diff[i]/LINK_LENGTH_METERS)));
+        }
+        if(angles[i] > MAX_ANGLE_DEG){
+            angles[i] = MAX_ANGLE_DEG;
+        }
 
         // Set per-leg PWM range
         int pwmMin, pwmMax;
@@ -89,8 +102,8 @@ void calculatelegCommands() {
             << "leg " << i+1
             << (i == ref_index ? " [REFERENCE]" : "")
             << " | range = " << -leg.z << " m"
-            << " | delta_z = " << delta_z << " m"
-            << " | angle = " << angle_deg << "°"
+            << " | delta_z = " << height_diff[i] << " m"
+            << " | angle = " << angles[i] << "°"
             << " | pwm = " << pwm);
     }
 }
