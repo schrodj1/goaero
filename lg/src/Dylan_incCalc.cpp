@@ -33,10 +33,11 @@ void rangeCallback(const sensor_msgs::Range::ConstPtr& msg, int index) {
 }
 
 void calculateLegCommands() {
+    // Make sure recieved values for all legs
     if (!std::all_of(legs.begin(), legs.end(), [](const Leg& l){ return l.received; }))
         return;
 
-    // 2. Use the leg with the min range (closest to ground) as reference
+    // Use the leg with the min range (closest to ground) as reference
     size_t ref_index = 0;
     double min_range = legs[0].z;
     for (size_t i = 1; i < legs.size(); ++i) {
@@ -62,7 +63,7 @@ void calculateLegCommands() {
     }
 
 
-    // 3. Calculate and publish leg commands
+    // Calculate and publish leg commands
     for (size_t i = 0; i < legs.size(); ++i) {
 
         // Set per-leg PWM range
