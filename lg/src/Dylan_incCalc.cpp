@@ -10,7 +10,7 @@ constexpr double LINK_LENGTH_METERS = 3.0 * 0.0254;  // 3 inches in meters
 constexpr double MAX_ANGLE_DEG = 30.0;
 constexpr double MIN_ANGLE_DEG = -30.0;
 
-struct Leg {
+struct leg {
     std::string range_topic;
     std::string pwm_topic;
     double x, y;    // leg position in body frame
@@ -20,7 +20,7 @@ struct Leg {
     ros::Publisher pub;
 };
 
-std::vector<Leg> legs = {
+std::vector<leg> legs = {
     {"leg1/range", "leg1/pwm_msg",  0.3,  0.3},
     {"leg2/range", "leg2/pwm_msg",  0.3, -0.3},
     {"leg3/range", "leg3/pwm_msg", -0.3,  0.3},
@@ -32,9 +32,9 @@ void rangeCallback(const sensor_msgs::Range::ConstPtr& msg, int index) {
     legs[index].received = true;
 }
 
-void calculateLegCommands() {
+void calculatelegCommands() {
     // Make sure recieved values for all legs
-    if (!std::all_of(legs.begin(), legs.end(), [](const Leg& l){ return l.received; }))
+    if (!std::all_of(legs.begin(), legs.end(), [](const leg& l){ return l.received; }))
         return;
 
     // Use the leg with the min range (closest to ground) as reference
@@ -50,7 +50,7 @@ void calculateLegCommands() {
 
     // find servo angles using closest range as 30 degrees
     int angles[4];
-    for (size_t i = 0; i < Legs.size(); ++i){
+    for (size_t i = 0; i < legs.size(); ++i){
         int height_diff = -legs[i].z - min_range;
         if (i == ref_index){
             angles[i] = MIN_ANGLE_DEG;
@@ -68,10 +68,10 @@ void calculateLegCommands() {
 
         // Set per-leg PWM range
         int pwmMin, pwmMax;
-        if (i == 1 || i == 2) {  // Legs 2 & 3 = reversed
+        if (i == 1 || i == 2) {  // legs 2 & 3 = reversed
             pwmMin = 1880;
             pwmMax = 1096;
-        } else {                // Legs 1 & 4 = normal
+        } else {                // legs 1 & 4 = normal
             pwmMin = 1096;
             pwmMax = 1880;
         }
@@ -86,7 +86,7 @@ void calculateLegCommands() {
         leg.pub.publish(pwm_msg);
 
         ROS_INFO_STREAM(std::fixed << std::setprecision(2)
-            << "Leg " << i+1
+            << "leg " << i+1
             << (i == ref_index ? " [REFERENCE]" : "")
             << " | range = " << -leg.z << " m"
             << " | delta_z = " << delta_z << " m"
@@ -110,7 +110,7 @@ int main(int argc, char** argv) {
     ros::Rate rate(10);
     while (ros::ok()) {
         ros::spinOnce();
-        calculateLegCommands();
+        calculatelegCommands();
         rate.sleep();
     }
 
