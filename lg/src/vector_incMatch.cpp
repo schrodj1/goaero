@@ -1,0 +1,151 @@
+// build plane and use vectors to match transform
+// from foot position to TOF Sensor Data
+#include <ros/ros.h>
+#include <sensor_msgs/Range.h>
+#include <std_msgs/UInt16.h>
+#include <vector>
+#include <cmath>
+#include <algorithm>
+#include <iomanip>
+
+// set values for horizontal link length, and retracted and extended angles
+constexpr double LINK_LENGTH_METERS = 3.0 * 0.0254;  // 3 inches in meters
+constexpr double RETRACTED_ANGLE = 45.0;
+constexpr double EXTENDED_ANGLE = -45.0;
+
+// set up servo angle vector
+double angles[4] = {RETRACTED_ANGLE, RETRACTED_ANGLE, RETRACTED_ANGLE, RETRACTED_ANGLE};
+
+// set up tranform vectors
+//front  and back right
+double foot1_trans[3] = {0.0, (3*cos(angles[0])), (-4-legs[0].z + 3*sin(angles[0]))};
+//front and back left
+double foot2_trans[3] = {0.0, (-3*cos(angles[0])), (-4-legs[0].z + 3*sin(angles[0]))};
+
+// create struct to store Leg position and range data
+struct leg {
+    std::string range_topic;
+    std::string pwm_topic;
+    double x, y;    // leg position in body frame
+    double z;       // terrain height (from range)
+    bool received = false;
+    ros::Subscriber sub;
+    ros::Publisher pub;
+};
+
+// vector to assign range topic and pwn topic and define x and y positions
+std::vector<leg> legs = {
+    {"leg1/range", "leg1/pwm_msg",  0.3,  0.3},
+    {"leg2/range", "leg2/pwm_msg",  0.3, -0.3},
+    {"leg3/range", "leg3/pwm_msg", -0.3,  0.3},
+    {"leg4/range", "leg4/pwm_msg", -0.3, -0.3}
+};
+
+// reads range messages and saves them in correct array instance 
+void rangeCallback(const sensor_msgs::Range::ConstPtr& msg, int index) {
+    legs[index].z = -msg->range;  // terrain height: negative range
+    legs[index].received = true;
+}
+
+// calculate leg positions for each leg
+void calculatelegCommands() {
+    // Make sure recieved values for all legs
+    if (!std::all_of(legs.begin(), legs.end(), [](const leg& l){ return l.received; }))
+        return;
+
+    // build plane
+    // find vector between legs 1 and 2
+    double v_12[3] = {legs[1].x - Legs[0].x, Legs[1].y - Legs[0].y, Legs[1].z - Legs[0].z};
+    // find vector between legs 1 and 3
+    double v_13[3] = {legs[2].x - Legs[0].x, Legs[2].y - Legs[0].y, Legs[2].z - Legs[0].z};
+    // find vector between legs 3 and 4
+    double v_34[3] = {legs[3].x - Legs[2].x, Legs[3].y - Legs[2].y, Legs[3].z - Legs[2].z};
+    // cross product to find normal vector of plane
+    double n[3] = {v_12[1] * v_13[2] - v_12[2] * v_13[1], v_12[2] * v_13[0] - v_12[0] * v_13[2], v_12[0] * v_13[1] - v_12[1] * v_13[0]}; 
+    
+    // project line between ToF sensors onto the plane
+    // calculate unit normal vector
+    double n_length = std::sqrt(n[0] * n[0] + n[1] * n[1] + n[2] * n[2]);
+    for (int i = 0; i < 3; ++i) {
+        n[i] = n[i]/n_length;
+    }
+    // calculate projected vectors (vectors to match)
+    double v_proj_12[3] = v_12[i] - (v_12[i]*n[i] + v_12[i]*n[i] + v_12[i]*n[i]) * n[i]; // Legs 1 and 2
+    double v_proj_34[3] = v_34[i] - (v_34[i]*n[i] + v_34[i]*n[i] + v_34[i]*n[i]) * n[i]; // Legs 3 and 4
+
+    // check if vectors can be matched
+    for(int i = 0; i < 4; ++1){
+        if(i < 2){
+            double y_check = (v_proj_12[1]/3);
+            double check = v_proj_12[1]^2 + (v_proj_12[2] + 4 + legs[i].z)^2;
+        } else {
+            double y_check = (v_proj_34[1]/3);
+            double check = v_proj_34[1]^2 + (v_proj_34[2] + 4 +  legs[i].z)^2;
+        }
+        if (check ~= 9 || y_check > 1 || y_check < -1) {
+            ROS_WARN("Vectors cannot be matched, check leg positions and range data.");
+            return;
+        }
+    }
+
+    // if check is succesful calculate angles for each leg and publish pwn commands
+    for (int i = 0; ; i < 4; ++i){
+        if(i < 2){
+            angles[i] = asin((legs[i].z + 4 + v_proj_12[2])/3) * (180 / M_PI);
+        } else {
+            angles[i] = asin((legs[i].z + 4 + v_proj_34[2])/3) * (180 / M_PI);
+        }
+
+        // Set per-leg PWM range
+        int pwmMin, pwmMax;
+        if (i == 1 || i == 2) {  // legs 2 & 3 = reversed
+            pwmMin = 1880;
+            pwmMax = 1096;
+        } else {                // legs 1 & 4 = normal
+            pwmMin = 1096;
+            pwmMax = 1880;
+        }
+
+        // Map angle to PWM
+        int pwm = static_cast<int>(
+            pwmMin + ((angles[i] - MIN_ANGLE_DEG) / (MAX_ANGLE_DEG - MIN_ANGLE_DEG)) * (pwmMax - pwmMin)
+        );
+
+        // create msg and publish
+        std_msgs::UInt16 pwm_msg;
+        pwm_msg.data = pwm;
+        leg.pub.publish(pwm_msg);
+
+        // print data to console for troubleshooting
+        ROS_INFO_STREAM(std::fixed << std::setprecision(2)
+            << "leg " << i+1
+            << (i == ref_index ? " [REFERENCE]" : "")
+            << " | range = " << -leg.z << " m"
+            << " | delta_z = " << height_diff[i] << " m"
+            << " | angle = " << angles[i] << "°"
+            << " | pwm = " << pwm);
+    }
+
+}
+
+int main(int argc, char** argv) {
+    ros::init(argc, argv, "terrain_leg_controller");
+    ros::NodeHandle nh;
+
+    for (size_t i = 0; i < legs.size(); ++i) {
+        legs[i].sub = nh.subscribe<sensor_msgs::Range>(
+            legs[i].range_topic, 1,
+            boost::bind(&rangeCallback, _1, i)
+        );
+        legs[i].pub = nh.advertise<std_msgs::UInt16>(legs[i].pwm_topic, 1);
+    }
+
+    ros::Rate rate(10);
+    while (ros::ok()) {
+        ros::spinOnce();
+        calculatelegCommands();
+        rate.sleep();
+    }
+
+    return 0;
+}

@@ -35,8 +35,8 @@ add_executable(serial src/serial.cpp)
 target_link_libraries(serial ${catkin_LIBRARIES})
 
 # Add executable for incline calculator
-add_executable(dylan_incCalc src/dylan_incCalc.cpp)
-target_link_libraries(dylan_incCalc ${catkin_LIBRARIES})
+add_executable(vector_incMatch src/vector_incMatch.cpp)
+target_link_libraries(vector_incMatch ${catkin_LIBRARIES})
 
 # Add executable for comProc
 add_executable(comProc src/comProc.cpp)
