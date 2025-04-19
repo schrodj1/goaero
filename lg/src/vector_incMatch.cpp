@@ -68,31 +68,37 @@ void calculatelegCommands() {
         n[i] = n[i]/n_length;
     }
     // calculate projected vectors (vectors to match)
-    double v_proj_13[3] = ToF_13 - (ToF_13[0]*n[0] + ToF_13[1]*n[1] + ToF_13[2]*n[2]) * n; // legs 1 and 2
-    double v_proj_24[3] = ToF_24 - (Tof_24[0]*n[0] + Tof_24[1]*n[1] + Tof_24[2]*n[2]) * n; // legs 3 and 4
-
-    // check if vectors can be matched
-    for(int i = 0; i < 4; ++1){
-        if(i == 0 || i == 2){
-            double y_check = (v_proj_13[1]/3);
-            double check = v_proj_13[1]^2 + (v_proj_13[2] + 4 + legs[i].z)^2;
-        } else {
-            double y_check = (v_proj_24[1]/3);
-            double check = v_proj_24[1]^2 + (v_proj_24[2] + 4 +  legs[i].z)^2;
-        }
-        if (check ~= 9 || y_check > 1 || y_check < -1) {
-            ROS_WARN("Vectors cannot be matched, check leg positions and range data.");
-            return;
-        }
+    double v_proj_13[3];
+    double v_proj_24[3];
+    for (int i = 0; i < 3; ++i){
+        v_proj_13[i] = ToF_13[i] - (ToF_13[0]*n[0] + ToF_13[1]*n[1] + ToF_13[2]*n[2])*n[i]; // legs 1 and 3
+        v_proj_24[i] = ToF_24[i] - (Tof_24[0]*n[0] + Tof_24[1]*n[1] + Tof_24[2]*n[2])*n[i]; // legs 2 and 4        
     }
 
+    // // check if vectors can be matched
+    // for(int i = 0; i < 4; ++1){
+    //     if(i == 0 || i == 2){
+    //         double y_check = (v_proj_13[1]/3);
+    //         double check = v_proj_13[1]*v_proj_13[1] + (v_proj_13[2] + 4 + legs[i].z)^2;
+    //     } else {
+    //         double y_check = (v_proj_24[1]/3);
+    //         double check = v_proj_24[1]*v_proj_24[1] + (v_proj_24[2] + 4 +  legs[i].z)^2;
+    //     }
+    //     if (check ~= 9 || y_check > 1 || y_check < -1) {
+    //         ROS_WARN("Vectors cannot be matched, check leg positions and range data.");
+    //         return;
+    //     }
+    // }
+
     // if check is succesful calculate angles for each leg and publish pwn commands
-    for (int i = 0; ; i < 4; ++i){
+    for (int i = 0; i < 4; ++i){
         if(i == 0 || i == 2){
             angles[i] = asin((legs[i].z + 4 + v_proj_13[2])/3) * (180 / M_PI);
         } else {
             angles[i] = asin((legs[i].z + 4 + v_proj_24[2])/3) * (180 / M_PI);
         }
+    //clamp angles between 45 and -45
+        angles[i] = std::clamp(angles[i], EXTENDED_ANGLE, RETRACTED_ANGLE);
 
         // Set per-leg PWM range
         int pwmMin, pwmMax;
