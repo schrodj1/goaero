@@ -117,7 +117,7 @@ void calculatelegCommands() {
         // create msg and publish
         std_msgs::UInt16 pwm_msg;
         pwm_msg.data = pwm;
-        leg_struct.pub.publish(pwm_msg);
+        legs[i].pub.publish(pwm_msg);
 
         // print data to console for troubleshooting
         ROS_INFO_STREAM(std::fixed << std::setprecision(2)
