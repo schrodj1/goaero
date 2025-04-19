@@ -17,7 +17,7 @@ constexpr double EXTENDED_ANGLE = -45.0;
 double angles[4] = {RETRACTED_ANGLE, RETRACTED_ANGLE, RETRACTED_ANGLE, RETRACTED_ANGLE};
 
 // create struct to store leg position and range data
-struct Leg {
+struct leg_struct {
     std::string range_topic;
     std::string pwm_topic;
     double x, y;    // leg position in body frame
@@ -28,7 +28,7 @@ struct Leg {
 };
 
 // vector to assign range topic and pwn topic and define x and y positions
-std::vector<leg> legs = {
+std::vector<leg_struct> legs = {
     {"leg1/range", "leg1/pwm_msg",  213.7 , -39.315},
     {"leg2/range", "leg2/pwm_msg", -213.7, -39.315},
     {"leg3/range", "leg3/pwm_msg", 213.7,  39.315},
@@ -48,7 +48,7 @@ void rangeCallback(const sensor_msgs::Range::ConstPtr& msg, int index) {
 // calculate leg positions for each leg
 void calculatelegCommands() {
     // Make sure recieved values for all legs
-    if (!std::all_of(legs.begin(), legs.end(), [](const leg& l){ return l.received; }))
+    if (!std::all_of(legs.begin(), legs.end(), [](const leg_struct& l){ return l.received; }))
         return;
 
     // build plane
@@ -117,7 +117,7 @@ void calculatelegCommands() {
         // create msg and publish
         std_msgs::UInt16 pwm_msg;
         pwm_msg.data = pwm;
-        Leg.pub.publish(pwm_msg);
+        leg_struct.pub.publish(pwm_msg);
 
         // print data to console for troubleshooting
         ROS_INFO_STREAM(std::fixed << std::setprecision(2)
