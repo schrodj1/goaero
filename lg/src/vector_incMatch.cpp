@@ -16,13 +16,7 @@ constexpr double EXTENDED_ANGLE = -45.0;
 // set up servo angle vector
 double angles[4] = {RETRACTED_ANGLE, RETRACTED_ANGLE, RETRACTED_ANGLE, RETRACTED_ANGLE};
 
-// set up tranform vectors
-//front  and back right
-double foot1_trans[3] = {0.0, (3*cos(angles[0])), (-4-legs[0].z + 3*sin(angles[0]))};
-//front and back left
-double foot2_trans[3] = {0.0, (-3*cos(angles[0])), (-4-legs[0].z + 3*sin(angles[0]))};
-
-// create struct to store Leg position and range data
+// create struct to store leg position and range data
 struct leg {
     std::string range_topic;
     std::string pwm_topic;
@@ -35,11 +29,15 @@ struct leg {
 
 // vector to assign range topic and pwn topic and define x and y positions
 std::vector<leg> legs = {
-    {"leg1/range", "leg1/pwm_msg",  0.3,  0.3},
-    {"leg2/range", "leg2/pwm_msg",  0.3, -0.3},
-    {"leg3/range", "leg3/pwm_msg", -0.3,  0.3},
-    {"leg4/range", "leg4/pwm_msg", -0.3, -0.3}
+    {"leg1/range", "leg1/pwm_msg",  213.7 , 39.315},
+    {"leg2/range", "leg2/pwm_msg", 213.7, -39.315},
+    {"leg3/range", "leg3/pwm_msg", -213.7,  39.315},
+    {"leg4/range", "leg4/pwm_msg", -213.7, -39.315 }
 };
+
+// line between front pair of ToF and back pair
+double ToF_12[3] = {legs[1].x - legs[0].x, legs[1].y - legs[0].y, 0};
+double ToF_34[3] = {legs[3].x - legs[2].x, legs[3].y - legs[2].y, 0};
 
 // reads range messages and saves them in correct array instance 
 void rangeCallback(const sensor_msgs::Range::ConstPtr& msg, int index) {
@@ -54,12 +52,12 @@ void calculatelegCommands() {
         return;
 
     // build plane
-    // find vector between legs 1 and 2
-    double v_12[3] = {legs[1].x - Legs[0].x, Legs[1].y - Legs[0].y, Legs[1].z - Legs[0].z};
-    // find vector between legs 1 and 3
-    double v_13[3] = {legs[2].x - Legs[0].x, Legs[2].y - Legs[0].y, Legs[2].z - Legs[0].z};
-    // find vector between legs 3 and 4
-    double v_34[3] = {legs[3].x - Legs[2].x, Legs[3].y - Legs[2].y, Legs[3].z - Legs[2].z};
+    // find vector between ToF 1 and 2 reading
+    double v_12[3] = {legs[1].x - legs[0].x, legs[1].y - legs[0].y, legs[1].z - legs[0].z};
+    // find vector between ToF 1 and 3
+    double v_13[3] = {legs[2].x - legs[0].x, legs[2].y - legs[0].y, legs[2].z - legs[0].z};
+    // find vector between ToF 3 and 4
+    double v_34[3] = {legs[3].x - legs[2].x, legs[3].y - legs[2].y, legs[3].z - legs[2].z};
     // cross product to find normal vector of plane
     double n[3] = {v_12[1] * v_13[2] - v_12[2] * v_13[1], v_12[2] * v_13[0] - v_12[0] * v_13[2], v_12[0] * v_13[1] - v_12[1] * v_13[0]}; 
     
@@ -70,8 +68,8 @@ void calculatelegCommands() {
         n[i] = n[i]/n_length;
     }
     // calculate projected vectors (vectors to match)
-    double v_proj_12[3] = v_12[i] - (v_12[i]*n[i] + v_12[i]*n[i] + v_12[i]*n[i]) * n[i]; // Legs 1 and 2
-    double v_proj_34[3] = v_34[i] - (v_34[i]*n[i] + v_34[i]*n[i] + v_34[i]*n[i]) * n[i]; // Legs 3 and 4
+    double v_proj_12[3] = ToF_12 - (ToF_12[0]*n[0] + ToF_12[1]*n[1] + ToF_12[2]*n[2]) * n; // legs 1 and 2
+    double v_proj_34[3] = ToF_34 - (ToF_34[0]*n[0] + ToF_34[1]*n[1] + ToF_34[2]*n[2]) * n; // legs 3 and 4
 
     // check if vectors can be matched
     for(int i = 0; i < 4; ++1){
@@ -108,8 +106,7 @@ void calculatelegCommands() {
 
         // Map angle to PWM
         int pwm = static_cast<int>(
-            pwmMin + ((angles[i] - MIN_ANGLE_DEG) / (MAX_ANGLE_DEG - MIN_ANGLE_DEG)) * (pwmMax - pwmMin)
-        );
+            pwmMin + ((angles[i] - EXTENDED_ANGLE) / (RETRACTED_ANGLE - EXTENDED_ANGLE)) * (pwmMax - pwmMin));
 
         // create msg and publish
         std_msgs::UInt16 pwm_msg;
