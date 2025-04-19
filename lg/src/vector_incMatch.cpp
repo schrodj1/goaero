@@ -9,7 +9,7 @@
 #include <iomanip>
 
 // set values for horizontal link length, and retracted and extended angles
-constexpr double LINK_LENGTH_METERS = 3.0 * 0.0254;  // 3 inches in meters
+constexpr double LINK_LENGTH_METERS = 3.0 * 25.4;  // 3 inches in meters
 constexpr double RETRACTED_ANGLE = 45.0;
 constexpr double EXTENDED_ANGLE = -45.0;
 

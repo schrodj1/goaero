@@ -16,8 +16,8 @@ void sensorCallback(const std_msgs::Int32MultiArray::ConstPtr& msg) {
             // Extract each value (assumed to be in millimeters)
             int sensor_value = msg->data[i];
 
-            // Convert the received value to meters (assuming the sensor value is in millimeters)
-            float range = static_cast<float>(sensor_value) / 1000.0f;  // Convert to meters
+            // (assuming the sensor value is in millimeters)
+            float range = static_cast<float>(sensor_value); 
 
             // Create a Range message
             sensor_msgs::Range range_msg;
