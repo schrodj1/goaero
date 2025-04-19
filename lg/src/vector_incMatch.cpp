@@ -17,7 +17,7 @@ constexpr double EXTENDED_ANGLE = -45.0;
 double angles[4] = {RETRACTED_ANGLE, RETRACTED_ANGLE, RETRACTED_ANGLE, RETRACTED_ANGLE};
 
 // create struct to store leg position and range data
-struct leg {
+struct Leg {
     std::string range_topic;
     std::string pwm_topic;
     double x, y;    // leg position in body frame
@@ -117,7 +117,7 @@ void calculatelegCommands() {
         // create msg and publish
         std_msgs::UInt16 pwm_msg;
         pwm_msg.data = pwm;
-        legs.pub.publish(pwm_msg);
+        Leg.pub.publish(pwm_msg);
 
         // print data to console for troubleshooting
         ROS_INFO_STREAM(std::fixed << std::setprecision(2)
