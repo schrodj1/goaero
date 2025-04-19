@@ -35,9 +35,9 @@ std::vector<leg_struct> legs = {
     {"leg4/range", "leg4/pwm_msg", -213.7, 39.315 }
 };
 
-// line between front pair of ToF and back pair
-double ToF_13[3] = {legs[2].x - legs[0].x, legs[2].y - legs[0].y, 0};
-double ToF_24[3] = {legs[3].x - legs[1].x, legs[4].y - legs[1].y, 0};
+// // line between front pair of ToF and back pair
+// double ToF_13[3] = {legs[2].x - legs[0].x, legs[2].y - legs[0].y, 0};
+// double ToF_24[3] = {legs[3].x - legs[1].x, legs[4].y - legs[1].y, 0};
 
 // reads range messages and saves them in correct array instance 
 void rangeCallback(const sensor_msgs::Range::ConstPtr& msg, int index) {
@@ -58,23 +58,23 @@ void calculatelegCommands() {
     double v_13[3] = {legs[2].x - legs[0].x, legs[2].y - legs[0].y, legs[2].z - legs[0].z};
     // find vector between ToF 2 and 4
     double v_24[3] = {legs[3].x - legs[1].x, legs[3].y - legs[1].y, legs[3].z - legs[1].z};
-    // cross product to find normal vector of plane
-    double n[3] = {v_12[1] * v_13[2] - v_12[2] * v_13[1], v_12[2] * v_13[0] - v_12[0] * v_13[2], v_12[0] * v_13[1] - v_12[1] * v_13[0]}; 
+    // // cross product to find normal vector of plane
+    // double n[3] = {v_12[1] * v_13[2] - v_12[2] * v_13[1], v_12[2] * v_13[0] - v_12[0] * v_13[2], v_12[0] * v_13[1] - v_12[1] * v_13[0]}; 
     
-    // project line between ToF sensors onto the plane
-    // calculate unit normal vector
-    double n_length = std::sqrt(n[0] * n[0] + n[1] * n[1] + n[2] * n[2]);
-    for (int i = 0; i < 3; ++i) {
-        n[i] = n[i]/n_length;
-    }
+    // // project line between ToF sensors onto the plane
+    // // calculate unit normal vector
+    // double n_length = std::sqrt(n[0] * n[0] + n[1] * n[1] + n[2] * n[2]);
+    // for (int i = 0; i < 3; ++i) {
+    //     n[i] = n[i]/n_length;
+    // }
 
-    // calculate projected vectors (vectors to match)
-    double v_proj_13[3];
-    double v_proj_24[3];
-    for (int i = 0; i < 3; ++i){
-        v_proj_13[i] = ToF_13[i] - (ToF_13[0]*n[0] + ToF_13[1]*n[1] + ToF_13[2]*n[2])*n[i]; // legs 1 and 3
-        v_proj_24[i] = ToF_24[i] - (ToF_24[0]*n[0] + ToF_24[1]*n[1] + ToF_24[2]*n[2])*n[i]; // legs 2 and 4        
-    }
+    // // calculate projected vectors (vectors to match)
+    // double v_proj_13[3];
+    // double v_proj_24[3];
+    // for (int i = 0; i < 3; ++i){
+    //     v_proj_13[i] = ToF_13[i] - (ToF_13[0]*n[0] + ToF_13[1]*n[1] + ToF_13[2]*n[2])*n[i]; // legs 1 and 3
+    //     v_proj_24[i] = ToF_24[i] - (ToF_24[0]*n[0] + ToF_24[1]*n[1] + ToF_24[2]*n[2])*n[i]; // legs 2 and 4        
+    // }
 
     // // check if vectors can be matched
     // for(int i = 0; i < 4; ++1){
@@ -99,16 +99,17 @@ void calculatelegCommands() {
             angles[i] = atan(v_24[2]/v_24[1]) * (180 / M_PI);
         }
     }
-        if (legs[0].z < legs[2].z){
-            angles[0] = -angles[0];
-        } else{
-            angles[2] = -angles[2];
-        }
-        if (legs[1].z < legs[3].z){
-            angles[1] = -angles[1];
-        } else {
-            angles[3] = -angles[3];
-        }
+
+    if (legs[0].z > legs[2].z){
+        angles[0] = -angles[0];
+    } else {
+        angles[2] = -angles[2];
+    }
+    if (legs[1].z > legs[3].z){
+        angles[1] = -angles[1];
+    } else {
+        angles[3] = -angles[3];
+    }
 
     for (int i =0; i<4; ++i){
     //clamp angles between 45 and -45
@@ -137,8 +138,6 @@ void calculatelegCommands() {
         ROS_INFO_STREAM(std::fixed << std::setprecision(2)
             << "leg " << i+1
             << " | range = " << -legs[i].z << " mm"
-            << " | front y component = " << v_13[1] << " mm"
-            << " | front z component = " << v_13[2] << " mm"
             << " | angle = " << angles[i] << "°"
             << " | pwm = " << pwm);
     }
