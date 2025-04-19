@@ -98,6 +98,7 @@ void calculatelegCommands() {
         } else {
             angles[i] = asin((v_24[2] + 4 + legs[i].z)/3) * (180 / M_PI);
         }
+
     //clamp angles between 45 and -45
         angles[i] = std::clamp(angles[i], EXTENDED_ANGLE, RETRACTED_ANGLE);
 
@@ -124,6 +125,8 @@ void calculatelegCommands() {
         ROS_INFO_STREAM(std::fixed << std::setprecision(2)
             << "leg " << i+1
             << " | range = " << -legs[i].z << " mm"
+            << " | front y component = " << v_13[1] << " mm"
+            << " | front z component = " << v_13[2] << " mm"
             << " | angle = " << angles[i] << "°"
             << " | pwm = " << pwm);
     }
