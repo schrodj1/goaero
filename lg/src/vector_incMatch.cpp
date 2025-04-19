@@ -100,16 +100,9 @@ void calculatelegCommands() {
         }
     }
 
-    if (legs[0].z > legs[2].z){
-        angles[0] = -angles[0];
-    } else {
-        angles[2] = -angles[2];
-    }
-    if (legs[1].z > legs[3].z){
-        angles[1] = -angles[1];
-    } else {
-        angles[3] = -angles[3];
-    }
+    //flip angles for necessary legs
+    angles[2] = -angles[2];
+    angles[3] = -angles[3];
 
     for (int i =0; i<4; ++i){
     //clamp angles between 45 and -45
