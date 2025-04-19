@@ -29,15 +29,15 @@ struct leg {
 
 // vector to assign range topic and pwn topic and define x and y positions
 std::vector<leg> legs = {
-    {"leg1/range", "leg1/pwm_msg",  213.7 , 39.315},
-    {"leg2/range", "leg2/pwm_msg", 213.7, -39.315},
-    {"leg3/range", "leg3/pwm_msg", -213.7,  39.315},
-    {"leg4/range", "leg4/pwm_msg", -213.7, -39.315 }
+    {"leg1/range", "leg1/pwm_msg",  213.7 , -39.315},
+    {"leg2/range", "leg2/pwm_msg", -213.7, -39.315},
+    {"leg3/range", "leg3/pwm_msg", 213.7,  39.315},
+    {"leg4/range", "leg4/pwm_msg", -213.7, 39.315 }
 };
 
 // line between front pair of ToF and back pair
-double ToF_12[3] = {legs[1].x - legs[0].x, legs[1].y - legs[0].y, 0};
-double ToF_34[3] = {legs[3].x - legs[2].x, legs[3].y - legs[2].y, 0};
+double ToF_13[3] = {legs[2].x - legs[0].x, legs[2].y - legs[0].y, 0};
+double ToF_24[3] = {legs[3].x - legs[1].x, legs[4].y - legs[1].y, 0};
 
 // reads range messages and saves them in correct array instance 
 void rangeCallback(const sensor_msgs::Range::ConstPtr& msg, int index) {
@@ -68,17 +68,17 @@ void calculatelegCommands() {
         n[i] = n[i]/n_length;
     }
     // calculate projected vectors (vectors to match)
-    double v_proj_12[3] = ToF_12 - (ToF_12[0]*n[0] + ToF_12[1]*n[1] + ToF_12[2]*n[2]) * n; // legs 1 and 2
-    double v_proj_34[3] = ToF_34 - (ToF_34[0]*n[0] + ToF_34[1]*n[1] + ToF_34[2]*n[2]) * n; // legs 3 and 4
+    double v_proj_13[3] = ToF_13 - (ToF_13[0]*n[0] + ToF_13[1]*n[1] + ToF_13[2]*n[2]) * n; // legs 1 and 2
+    double v_proj_24[3] = ToF_24 - (Tof_24[0]*n[0] + Tof_24[1]*n[1] + Tof_24[2]*n[2]) * n; // legs 3 and 4
 
     // check if vectors can be matched
     for(int i = 0; i < 4; ++1){
-        if(i < 2){
-            double y_check = (v_proj_12[1]/3);
-            double check = v_proj_12[1]^2 + (v_proj_12[2] + 4 + legs[i].z)^2;
+        if(i == 0 || i == 2){
+            double y_check = (v_proj_13[1]/3);
+            double check = v_proj_13[1]^2 + (v_proj_13[2] + 4 + legs[i].z)^2;
         } else {
-            double y_check = (v_proj_34[1]/3);
-            double check = v_proj_34[1]^2 + (v_proj_34[2] + 4 +  legs[i].z)^2;
+            double y_check = (v_proj_24[1]/3);
+            double check = v_proj_24[1]^2 + (v_proj_24[2] + 4 +  legs[i].z)^2;
         }
         if (check ~= 9 || y_check > 1 || y_check < -1) {
             ROS_WARN("Vectors cannot be matched, check leg positions and range data.");
@@ -88,10 +88,10 @@ void calculatelegCommands() {
 
     // if check is succesful calculate angles for each leg and publish pwn commands
     for (int i = 0; ; i < 4; ++i){
-        if(i < 2){
-            angles[i] = asin((legs[i].z + 4 + v_proj_12[2])/3) * (180 / M_PI);
+        if(i == 0 || i == 2){
+            angles[i] = asin((legs[i].z + 4 + v_proj_13[2])/3) * (180 / M_PI);
         } else {
-            angles[i] = asin((legs[i].z + 4 + v_proj_34[2])/3) * (180 / M_PI);
+            angles[i] = asin((legs[i].z + 4 + v_proj_24[2])/3) * (180 / M_PI);
         }
 
         // Set per-leg PWM range
