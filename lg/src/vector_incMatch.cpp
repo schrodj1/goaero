@@ -93,9 +93,9 @@ void calculatelegCommands() {
     // if check is succesful calculate angles for each leg and publish pwn commands
     for (int i = 0; i < 4; ++i){
         if(i == 0 || i == 2){
-            angles[i] = asin((legs[i].z + 4 + v_proj_13[2])/3) * (180 / M_PI);
+            angles[i] = acos(v_proj_13[1]/3) * (180 / M_PI);
         } else {
-            angles[i] = asin((legs[i].z + 4 + v_proj_24[2])/3) * (180 / M_PI);
+            angles[i] = acos(v_proj_24[1]/3) * (180 / M_PI);
         }
     //clamp angles between 45 and -45
         angles[i] = std::clamp(angles[i], EXTENDED_ANGLE, RETRACTED_ANGLE);
@@ -122,7 +122,7 @@ void calculatelegCommands() {
         // print data to console for troubleshooting
         ROS_INFO_STREAM(std::fixed << std::setprecision(2)
             << "leg " << i+1
-            << " | range = " << -legs[i].z << " m"
+            << " | range = " << -legs[i].z << " mm"
             << " | angle = " << angles[i] << "°"
             << " | pwm = " << pwm);
     }
