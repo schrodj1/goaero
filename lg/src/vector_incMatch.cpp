@@ -72,7 +72,7 @@ void calculatelegCommands() {
     double v_proj_24[3];
     for (int i = 0; i < 3; ++i){
         v_proj_13[i] = ToF_13[i] - (ToF_13[0]*n[0] + ToF_13[1]*n[1] + ToF_13[2]*n[2])*n[i]; // legs 1 and 3
-        v_proj_24[i] = ToF_24[i] - (Tof_24[0]*n[0] + Tof_24[1]*n[1] + Tof_24[2]*n[2])*n[i]; // legs 2 and 4        
+        v_proj_24[i] = ToF_24[i] - (ToF_24[0]*n[0] + ToF_24[1]*n[1] + ToF_24[2]*n[2])*n[i]; // legs 2 and 4        
     }
 
     // // check if vectors can be matched
@@ -117,14 +117,12 @@ void calculatelegCommands() {
         // create msg and publish
         std_msgs::UInt16 pwm_msg;
         pwm_msg.data = pwm;
-        leg.pub.publish(pwm_msg);
+        legs.pub.publish(pwm_msg);
 
         // print data to console for troubleshooting
         ROS_INFO_STREAM(std::fixed << std::setprecision(2)
             << "leg " << i+1
-            << (i == ref_index ? " [REFERENCE]" : "")
-            << " | range = " << -leg.z << " m"
-            << " | delta_z = " << height_diff[i] << " m"
+            << " | range = " << -legs[i].z << " m"
             << " | angle = " << angles[i] << "°"
             << " | pwm = " << pwm);
     }
