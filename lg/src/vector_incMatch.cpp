@@ -94,9 +94,9 @@ void calculatelegCommands() {
     // if check is succesful calculate angles for each leg and publish pwn commands
     for (int i = 0; i < 4; ++i){
         if(i == 0 || i == 2){
-            angles[i] = asin((v_13[2] + 4 + legs[i].z)/3) * (180 / M_PI);
+            angles[i] = atan(v_13[2]/v_13[1]) * (180 / M_PI);
         } else {
-            angles[i] = asin((v_24[2] + 4 + legs[i].z)/3) * (180 / M_PI);
+            angles[i] = atan(v_24[2]/v_24[1]) * (180 / M_PI);
         }
 
     //clamp angles between 45 and -45
