@@ -56,8 +56,8 @@ void calculatelegCommands() {
     double v_12[3] = {legs[1].x - legs[0].x, legs[1].y - legs[0].y, legs[1].z - legs[0].z};
     // find vector between ToF 1 and 3
     double v_13[3] = {legs[2].x - legs[0].x, legs[2].y - legs[0].y, legs[2].z - legs[0].z};
-    // find vector between ToF 3 and 4
-    double v_34[3] = {legs[3].x - legs[2].x, legs[3].y - legs[2].y, legs[3].z - legs[2].z};
+    // find vector between ToF 2 and 4
+    double v_24[3] = {legs[3].x - legs[1].x, legs[3].y - legs[1].y, legs[3].z - legs[1].z};
     // cross product to find normal vector of plane
     double n[3] = {v_12[1] * v_13[2] - v_12[2] * v_13[1], v_12[2] * v_13[0] - v_12[0] * v_13[2], v_12[0] * v_13[1] - v_12[1] * v_13[0]}; 
     
@@ -67,6 +67,7 @@ void calculatelegCommands() {
     for (int i = 0; i < 3; ++i) {
         n[i] = n[i]/n_length;
     }
+
     // calculate projected vectors (vectors to match)
     double v_proj_13[3];
     double v_proj_24[3];
@@ -93,9 +94,9 @@ void calculatelegCommands() {
     // if check is succesful calculate angles for each leg and publish pwn commands
     for (int i = 0; i < 4; ++i){
         if(i == 0 || i == 2){
-            angles[i] = acos(v_proj_13[1]/3) * (180 / M_PI);
+            angles[i] = acos(v_13[1]/3) * (180 / M_PI);
         } else {
-            angles[i] = acos(v_proj_24[1]/3) * (180 / M_PI);
+            angles[i] = acos(v_24[1]/3) * (180 / M_PI);
         }
     //clamp angles between 45 and -45
         angles[i] = std::clamp(angles[i], EXTENDED_ANGLE, RETRACTED_ANGLE);
