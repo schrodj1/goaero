@@ -20,6 +20,11 @@
 // hardware SPI! In this case, only CS pins are passed in
 Adafruit_LSM9DS1 lsm = Adafruit_LSM9DS1(LSM9DS1_XGCS, LSM9DS1_MCS);
 
+float gyro_bias_x;
+float gyro_bias_y;
+float gyro_bias_z;
+int samples = 500;
+
 // define tof components
 VL53L4CD tof1(&DEV_I2C, 12);
 VL53L4CD tof2(&DEV_I2C, 10);
@@ -30,8 +35,8 @@ int data[10];
 int filtered_data[10];
 
 unsigned long previousMillis = 0;  // store last time action was taken
-const long interval = 30;          // interval at which to do something (ms)
-unsigned long CurrentMillis = 0;
+const long interval = 100;         // interval at which to do something (ms)
+unsigned long current_millis;
 
 void setup() {
   // Initialize serial for output.
@@ -96,15 +101,27 @@ void setup() {
   while (!lsm.begin()) {
   }
 
-  // helper to just set the default scaling
-  setupSensor();
+  lsm.setupAccel(lsm.LSM9DS1_ACCELRANGE_2G, lsm.LSM9DS1_ACCELDATARATE_10HZ);
+  lsm.setupGyro(lsm.LSM9DS1_GYROSCALE_245DPS);
+
+  for (int i = 0; i < samples; i++) {
+    lsm.read();
+    gyro_bias_x += lsm.gyroData.x;
+    gyro_bias_y += lsm.gyroData.y;
+    gyro_bias_z += lsm.gyroData.z;
+    delay(5);  // Small delay between samples
+  }
+
+  gyro_bias_x /= samples;
+  gyro_bias_y /= samples;
+  gyro_bias_z /= samples;
 }
 
 void loop() {
-  currentMillis = millis();
+  current_millis = millis();
 
-  if (currentMillis - previousMillis >= interval) {
-    previousMillis = currentMillis;
+  if (current_millis - previousMillis >= interval) {
+    previousMillis = current_millis;
 
 
     uint8_t NewDataReady = 0;
@@ -182,24 +199,35 @@ void loop() {
 
     lsm.read(); /* ask it to read in the data */
 
-    /* Get a new sensor event */
-    sensors_event_t a, g, m, t;
+    // saves IMU values in data, accel in m/s^2, gyro in degree/s
+    data[4] = lsm.accelData.x;
+    data[5] = lsm.accelData.y;
+    data[6] = lsm.accelData.z;
+    float gyro_x_dps = (lsm.gyroData.x - gyro_bias_x) * 0.00875;
+    float gyro_y_dps = (lsm.gyroData.y - gyro_bias_y) * 0.00875;
+    float gyro_z_dps = (lsm.gyroData.z - gyro_bias_z) * 0.00875;
 
-    lsm.getEvent(&a, &g, &m, &t);
-    // saves IMU values in data, accel in m/s^2, gyro in rad/s
-    data[4] = a.acceleration.x;
-    data[5] = a.acceleration.y;
-    data[6] = a.acceleration.z;
-    data[7] += g.gyro.x * interval;
-    data[8] += g.gyro.y * interval;
-    data[9] += g.gyro.z * interval;
+    // Integrate gyro data (degrees)
+    float gyro_pitch = data[7] + gyro_x_dps * (interval / 1000.0);  // from gyro X
+    float gyro_roll = data[8] + gyro_y_dps * (interval / 1000.0);   // from gyro Y
+    float gyro_yaw = data[9] + gyro_z_dps * (interval / 1000.0);    // from gyro Z
+
+    // Calculate accelerometer-based pitch and roll (in degrees)
+    float acc_pitch = atan2(lsm.accelData.y, sqrt(pow(lsm.accelData.x, 2) + pow(lsm.accelData.z, 2))) * 180.0 / PI;
+    float acc_roll = atan2(-lsm.accelData.x, lsm.accelData.z) * 180.0 / PI;
+
+    // Complementary filter to fuse gyro and accel
+    const float alpha = 0.90;                                // High-pass filter for gyro, low-pass for accel
+    data[7] = alpha * gyro_pitch + (1 - alpha) * acc_pitch;  // Fused pitch
+    data[8] = alpha * gyro_roll + (1 - alpha) * acc_roll;    // Fused roll
+    data[9] = gyro_yaw;                                      // Yaw from gyro only (no accelerometer contribution)
 
     for (int i = 0; i < 10; i++) {
       if (i < 4) {
-        filtered_data[i] = (0.4) * data[i] + (1 - 0.4) * filtered_data[i];
+        filtered_data[i] = (0.5) * data[i] + (1 - 0.5) * filtered_data[i];
       } else {
-        filtered_data[i] = (0.9) * data[i] + (1 - 0.9) * filtered_data[i];
-        //filtered_data[i] = data[i];
+        // filtered_data[i] = (0.9) * data[i] + (1 - 0.9) * filtered_data[i];
+        filtered_data[i] = data[i];
       }
     }
 
@@ -209,13 +237,13 @@ void loop() {
     }
     Serial.println();
   }
+}
 
-  // function to setup resolution for IMU
-  void setupSensor() {
-    // 1.) Set the accelerometer range
-    lsm.setupAccel(lsm.LSM9DS1_ACCELRANGE_2G, lsm.LSM9DS1_ACCELDATARATE_10HZ);
+// function to setup resolution for IMU
+void setupSensor() {
+  // 1.) Set the accelerometer range
+  lsm.setupAccel(lsm.LSM9DS1_ACCELRANGE_2G, lsm.LSM9DS1_ACCELDATARATE_10HZ);
 
-    // 3.) Setup the gyroscope
-    lsm.setupGyro(lsm.LSM9DS1_GYROSCALE_245DPS);
-  }
+  // 3.) Setup the gyroscope
+  lsm.setupGyro(lsm.LSM9DS1_GYROSCALE_245DPS);
 }
