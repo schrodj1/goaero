@@ -35,12 +35,12 @@ int data[10];
 int filtered_data[10];
 
 unsigned long previousMillis = 0;  // store last time action was taken
-const long interval = 100;         // interval at which to do something (ms)
+const long interval = 10;         // interval at which to do something (ms)
 unsigned long current_millis;
 
 void setup() {
   // Initialize serial for output.
-  SerialPort.begin(9600);
+  SerialPort.begin(115200);
 
   // Initialize I2C bus.
   DEV_I2C.begin();
