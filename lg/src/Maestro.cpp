@@ -10,7 +10,7 @@
 
 namespace fs = std::filesystem;
 
-// Function to find the Maestro command port dynamically
+// Function to find the Maestro command port
 std::string findMaestroCommandPort() {
     const std::string path = "/dev/serial/by-id/";
     for (const auto& entry : fs::directory_iterator(path)) {
@@ -70,6 +70,7 @@ int main(int argc, char **argv) {
         return 1;
     }
 
+    // Set paramaters for the serial port
     cfsetispeed(&options, B115200);
     cfsetospeed(&options, B115200);
     options.c_cflag &= ~PARENB;

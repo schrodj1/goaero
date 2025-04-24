@@ -49,7 +49,7 @@ int main(int argc, char** argv) {
     // Create a publisher to publish sensor data
     ros::Publisher sensor_pub = nh.advertise<std_msgs::Int32MultiArray>("sensor_values", 10);
 
-    // Open the serial port
+    // Open the serial port for the Arduino
     const char *portName = "/dev/ttyACM0";
     int serialPort = open(portName, O_RDWR | O_NOCTTY | O_NDELAY);
 
@@ -69,11 +69,12 @@ int main(int argc, char** argv) {
     std::string buffer;  // Buffer to store incoming data
     char rx_char;        // Character read from the serial port
 
-    ros::Rate loop_rate(100);  // Loop rate at 100 Hz
+    ros::Rate loop_rate(100);
 
     while (ros::ok()) {
         // Read one character at a time
         while (read(serialPort, &rx_char, 1) > 0) {
+            // Check for newline to indicate the end of a message
             if (rx_char == '\n') {
                 // Process the complete message
                 std::stringstream ss(buffer);
@@ -98,8 +99,8 @@ int main(int argc, char** argv) {
             }
         }
 
-        ros::spinOnce();  // Allow ROS to process any incoming messages
-        loop_rate.sleep();  // Sleep to maintain loop rate
+        ros::spinOnce();
+        loop_rate.sleep();
     }
 
     close(serialPort);  // Close the serial port when done

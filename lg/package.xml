@@ -2,8 +2,9 @@
 <name>lg</name>
 <version>0.0.0</version>
 <description>The goaero landing gear package</description>
-<maintainer email="jonathan@todo.todo">jonathan</maintainer>
+<maintainer email="stokesd7@my.erau.edu">dylan</maintainer>
 <license>TODO</license>
+
 <buildtool_depend>catkin</buildtool_depend>
 <build_depend>message_generation </build_depend>
 <run_depend>message_runtime</run_depend>

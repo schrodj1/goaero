@@ -8,7 +8,7 @@
 #include <algorithm>
 #include <iomanip>
 
-
+// Function to keep angles within the range of motion
 template <typename T>
 T clamp(T value, T min, T max) {
     if (value < min) return min;
@@ -16,8 +16,8 @@ T clamp(T value, T min, T max) {
     return value;
 }
 
-// set values for horizontal link length, and retracted and extended angles
-constexpr double LINK_LENGTH_METERS = 3.0 * 25.4;  // 3 inches in meters
+// set values for horizontal link length, retracted, and extended angles
+constexpr double LINK_LENGTH_MILLI = 3.0 * 25.4;  // 3 inches in millimeters
 constexpr double RETRACTED_ANGLE = 40.0;
 constexpr double EXTENDED_ANGLE = -40.0;
 
@@ -27,10 +27,10 @@ double angles[4] = {RETRACTED_ANGLE, RETRACTED_ANGLE, RETRACTED_ANGLE, RETRACTED
 double rollIMU = 0.0;
 double pitchIMU = 0.0;
 double w = 165.113 / 2; // distance between legs left to right
-double l = LINK_LENGTH_METERS; // length of horizontal link
+double l = LINK_LENGTH_MILLI; // length of horizontal link
 double D = 213.7*2; // distance between legs front to back
-double RAD2DEG = 180/M_PI; //for my sanity
-double DEG2RAD = M_PI/180; //dear God pls work
+double RAD2DEG = 180/M_PI;
+double DEG2RAD = M_PI/180;
 
 // create struct to store leg position and range data
 struct leg_struct {
@@ -43,7 +43,7 @@ struct leg_struct {
     ros::Publisher pub;
 };
 
-// vector to assign range topic and pwn topic and define x and y positions
+// vector to assign range topic and pwm topic and define x and y positions
 std::vector<leg_struct> legs = {
     {"leg1/range", "leg1/pwm_msg",  213.7 , -39.315},
     {"leg2/range", "leg2/pwm_msg", -213.7, -39.315},
@@ -57,9 +57,9 @@ void rangeCallback(const sensor_msgs::Range::ConstPtr& msg, int index) {
     legs[index].received = true;
 };
 
-// callback to update roll value from the subscribed topic
+// callback to update pitch value from the subscribed topic
 void pitchCallback(const std_msgs::Int32::ConstPtr& msg) {
-    pitchIMU = static_cast<double>(msg->data);  // update the roll value
+    pitchIMU = static_cast<double>(msg->data);  // update the pitch value
 };
 
 // callback to update roll value from the subscribed topic
@@ -73,13 +73,12 @@ void calculatelegCommands() {
     if (!std::all_of(legs.begin(), legs.end(), [](const leg_struct& l){ return l.received; }))
         return;
  
-
     double hdiffF = legs[2].z-legs[0].z; // finds height diff from sensor 1&3
     double hdiffB = legs[3].z-legs[1].z; // finds height diff from sensor 2&4
-    double hdiffFB = ((-legs[2].z+legs[3].z)+(-legs[0].z+legs[1].z))/2; // finds height diff by averaging height differences
+    double hdiffFB = ((-legs[2].z+legs[3].z)+(-legs[0].z+legs[1].z))/2; // finds height diff from front to back by averaging height differences
     
-    double rollF = atan(hdiffF/(39.315*2)) + rollIMU*DEG2RAD;
-    double rollB = atan(hdiffB/(39.315*2)) + rollIMU*DEG2RAD;
+    double rollF = atan(hdiffF/(39.315*2)) + rollIMU*DEG2RAD; // roll of front legs
+    double rollB = atan(hdiffB/(39.315*2)) + rollIMU*DEG2RAD; // roll of  back legs
     double pitch = (atan(hdiffFB/(D)) - pitchIMU*DEG2RAD); // find pitch angle
     
     // Front legs (phi1 and phi3)
@@ -89,27 +88,8 @@ void calculatelegCommands() {
     } else {
         angles[0] = RAD2DEG * (rollF + asin(((w + (D * tan(pitch)) / (2.0 * sin(rollF))) * sin(rollF)) / l));
         angles[2] = -RAD2DEG * (rollF + asin(((w - (D * tan(pitch)) / (2.0 * sin(rollF))) * sin(rollF)) / l));
-    // } else {
-    //     double sin(rollF) = std::max(std::abs(sin(rollF)), epsilon);
-    //     angles[0] = RAD2DEG * (rollF + asin((((w + (D * tan(pitch)) / (2.0 * sin(rollF))) * sin(rollF)) / l, -1.0, 1.0)));
-    //     angles[2] = -RAD2DEG * (rollF + asin((((w - (D * tan(pitch)) / (2.0 * sin(rollF))) * sin(rollF)) / l, -1.0, 1.0)));
-    // }
     }
     // Back legs (phi2 and phi4)
-    // if (std::abs(rollB) < epsilon) {
-    //     double safe_asin_input = clamp((D * tan(pitch)) / (2.0 * l), -1.0, 1.0);
-    //     angles[1] = -RAD2DEG * asin(safe_asin_input);
-    //     angles[3] = -RAD2DEG * asin(safe_asin_input);
-    // } else if (rollB < 0) {
-    //     double rollB_sin = std::max(std::abs(sin(rollB)), epsilon);
-    //     angles[1] = RAD2DEG * (rollB + asin(clamp(((w - (D * tan(pitch)) / (2.0 * rollB_sin)) * rollB_sin) / l, -1.0, 1.0)));
-    //     angles[3] = -RAD2DEG * (rollB + asin(clamp(((w + (D * tan(pitch)) / (2.0 * rollB_sin)) * rollB_sin) / l, -1.0, 1.0)));
-    // } else {
-    //     double rollB_sin = std::max(std::abs(sin(rollB)), epsilon);
-    //     angles[1] = RAD2DEG * (rollB + asin(clamp(((w + (D * tan(pitch)) / (2.0 * rollB_sin)) * rollB_sin) / l, -1.0, 1.0)));
-    //     angles[3] = -RAD2DEG * (rollB + asin(clamp(((w - (D * tan(pitch)) / (2.0 * rollB_sin)) * rollB_sin) / l, -1.0, 1.0)));
-    // }
-
     if (rollB == 0) {
         angles[1] = -RAD2DEG * asin(D*tan(pitch) / (2.0 * l));
         angles[3] = -RAD2DEG * asin(D*tan(pitch) / (2.0 * l));
@@ -117,26 +97,23 @@ void calculatelegCommands() {
         angles[1] = RAD2DEG * (rollB + asin(((w - (D * tan(pitch)) / (2.0 * sin(rollB))) * sin(rollB)) / l));
         angles[3] = -RAD2DEG * (rollB + asin(((w + (D * tan(pitch)) / (2.0 * sin(rollB))) * sin(rollB)) / l));
     }
-    
-    
-    
-    
+
         for (int i =0; i<4; ++i){
-    //clamp angles between 45 and -45
+        //clamp angles between 45 and -45
         angles[i] = clamp(angles[i], EXTENDED_ANGLE, RETRACTED_ANGLE);
 
         // Set per-leg PWM range
         int pwmMin, pwmMax;
-        if (i == 0) {  // legs 2 & 3 = reversed
+        if (i == 0) { // leg 1 pwm range
             pwmMin = 896;
             pwmMax = 1713.75;
-        } else if (i == 1) {                // legs 1 & 4 = normal
+        } else if (i == 1) { // leg 2 pwm range
             pwmMin = 2070;
             pwmMax = 1250;
-        } else if (i == 2) {                // legs 1 & 4 = normal
+        } else if (i == 2) { // leg 3 pwm range
             pwmMin = 2070;
             pwmMax = 1191;
-        } else  {                // legs 1 & 4 = normal
+        } else  { // leg 4 pwm range
             pwmMin = 1000;
             pwmMax = 1801.5;
         }
@@ -171,9 +148,10 @@ int main(int argc, char** argv) {
     // Subscribe to roll_value topic
     ros::Subscriber roll_sub = nh.subscribe("roll_value", 1, rollCallback);
 
-    // Subscribe to roll_value topic
+    // Subscribe to pitch_value topic
     ros::Subscriber pitch_sub = nh.subscribe("pitch_value", 1, pitchCallback);
 
+    // Subscribe to  all 4 range topics and create publishers for PWM topics
     for (size_t i = 0; i < legs.size(); ++i) {
         legs[i].sub = nh.subscribe<sensor_msgs::Range>(
             legs[i].range_topic, 1,
