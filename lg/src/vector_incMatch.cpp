@@ -1,20 +1,36 @@
-// build plane and use vectors to match transform
-// from foot position to TOF Sensor Data
+
 #include <ros/ros.h>
 #include <sensor_msgs/Range.h>
 #include <std_msgs/UInt16.h>
+#include <std_msgs/Int32.h>
 #include <vector>
 #include <cmath>
 #include <algorithm>
 #include <iomanip>
 
+
+template <typename T>
+T clamp(T value, T min, T max) {
+    if (value < min) return min;
+    if (value > max) return max;
+    return value;
+}
+
 // set values for horizontal link length, and retracted and extended angles
 constexpr double LINK_LENGTH_METERS = 3.0 * 25.4;  // 3 inches in meters
-constexpr double RETRACTED_ANGLE = 45.0;
-constexpr double EXTENDED_ANGLE = -45.0;
+constexpr double RETRACTED_ANGLE = 40.0;
+constexpr double EXTENDED_ANGLE = -40.0;
 
 // set up servo angle vector
 double angles[4] = {RETRACTED_ANGLE, RETRACTED_ANGLE, RETRACTED_ANGLE, RETRACTED_ANGLE};
+
+double rollIMU = 0.0;
+double pitchIMU = 0.0;
+double w = 165.113 / 2; // distance between legs left to right
+double l = LINK_LENGTH_METERS; // length of horizontal link
+double D = 213.7*2; // distance between legs front to back
+double RAD2DEG = 180/M_PI; //for my sanity
+double DEG2RAD = M_PI/180; //dear God pls work
 
 // create struct to store leg position and range data
 struct leg_struct {
@@ -35,87 +51,94 @@ std::vector<leg_struct> legs = {
     {"leg4/range", "leg4/pwm_msg", -213.7, 39.315 }
 };
 
-// // line between front pair of ToF and back pair
-// double ToF_13[3] = {legs[2].x - legs[0].x, legs[2].y - legs[0].y, 0};
-// double ToF_24[3] = {legs[3].x - legs[1].x, legs[4].y - legs[1].y, 0};
-
 // reads range messages and saves them in correct array instance 
 void rangeCallback(const sensor_msgs::Range::ConstPtr& msg, int index) {
     legs[index].z = -msg->range;  // terrain height: negative range
     legs[index].received = true;
-}
+};
+
+// callback to update roll value from the subscribed topic
+void pitchCallback(const std_msgs::Int32::ConstPtr& msg) {
+    pitchIMU = static_cast<double>(msg->data);  // update the roll value
+};
+
+// callback to update roll value from the subscribed topic
+void rollCallback(const std_msgs::Int32::ConstPtr& msg) {
+    rollIMU = static_cast<double>(msg->data);  // update the roll value
+};
 
 // calculate leg positions for each leg
 void calculatelegCommands() {
     // Make sure recieved values for all legs
     if (!std::all_of(legs.begin(), legs.end(), [](const leg_struct& l){ return l.received; }))
         return;
+ 
 
-    // build plane
-    // find vector between ToF 1 and 2 reading
-    double v_12[3] = {legs[1].x - legs[0].x, legs[1].y - legs[0].y, legs[1].z - legs[0].z};
-    // find vector between ToF 1 and 3
-    double v_13[3] = {legs[2].x - legs[0].x, legs[2].y - legs[0].y, legs[2].z - legs[0].z};
-    // find vector between ToF 2 and 4
-    double v_24[3] = {legs[3].x - legs[1].x, legs[3].y - legs[1].y, legs[3].z - legs[1].z};
-    // // cross product to find normal vector of plane
-    // double n[3] = {v_12[1] * v_13[2] - v_12[2] * v_13[1], v_12[2] * v_13[0] - v_12[0] * v_13[2], v_12[0] * v_13[1] - v_12[1] * v_13[0]}; 
+    double hdiffF = legs[2].z-legs[0].z; // finds height diff from sensor 1&3
+    double hdiffB = legs[3].z-legs[1].z; // finds height diff from sensor 2&4
+    double hdiffFB = ((-legs[2].z+legs[3].z)+(-legs[0].z+legs[1].z))/2; // finds height diff by averaging height differences
     
-    // // project line between ToF sensors onto the plane
-    // // calculate unit normal vector
-    // double n_length = std::sqrt(n[0] * n[0] + n[1] * n[1] + n[2] * n[2]);
-    // for (int i = 0; i < 3; ++i) {
-    //     n[i] = n[i]/n_length;
+    double rollF = atan(hdiffF/(39.315*2)) + rollIMU*DEG2RAD;
+    double rollB = atan(hdiffB/(39.315*2)) + rollIMU*DEG2RAD;
+    double pitch = (atan(hdiffFB/(D)) - pitchIMU*DEG2RAD); // find pitch angle
+    
+    // Front legs (phi1 and phi3)
+    if (rollF == 0) {
+        angles[0] = RAD2DEG * asin(D*tan(pitch) / (2.0 * l));
+        angles[2] = RAD2DEG * asin(D*tan(pitch) / (2.0 * l));
+    } else {
+        angles[0] = RAD2DEG * (rollF + asin(((w + (D * tan(pitch)) / (2.0 * sin(rollF))) * sin(rollF)) / l));
+        angles[2] = -RAD2DEG * (rollF + asin(((w - (D * tan(pitch)) / (2.0 * sin(rollF))) * sin(rollF)) / l));
+    // } else {
+    //     double sin(rollF) = std::max(std::abs(sin(rollF)), epsilon);
+    //     angles[0] = RAD2DEG * (rollF + asin((((w + (D * tan(pitch)) / (2.0 * sin(rollF))) * sin(rollF)) / l, -1.0, 1.0)));
+    //     angles[2] = -RAD2DEG * (rollF + asin((((w - (D * tan(pitch)) / (2.0 * sin(rollF))) * sin(rollF)) / l, -1.0, 1.0)));
     // }
-
-    // // calculate projected vectors (vectors to match)
-    // double v_proj_13[3];
-    // double v_proj_24[3];
-    // for (int i = 0; i < 3; ++i){
-    //     v_proj_13[i] = ToF_13[i] - (ToF_13[0]*n[0] + ToF_13[1]*n[1] + ToF_13[2]*n[2])*n[i]; // legs 1 and 3
-    //     v_proj_24[i] = ToF_24[i] - (ToF_24[0]*n[0] + ToF_24[1]*n[1] + ToF_24[2]*n[2])*n[i]; // legs 2 and 4        
-    // }
-
-    // // check if vectors can be matched
-    // for(int i = 0; i < 4; ++1){
-    //     if(i == 0 || i == 2){
-    //         double y_check = (v_proj_13[1]/3);
-    //         double check = v_proj_13[1]*v_proj_13[1] + (v_proj_13[2] + 4 + legs[i].z)^2;
-    //     } else {
-    //         double y_check = (v_proj_24[1]/3);
-    //         double check = v_proj_24[1]*v_proj_24[1] + (v_proj_24[2] + 4 +  legs[i].z)^2;
-    //     }
-    //     if (check ~= 9 || y_check > 1 || y_check < -1) {
-    //         ROS_WARN("Vectors cannot be matched, check leg positions and range data.");
-    //         return;
-    //     }
-    // }
-
-    // if check is succesful calculate angles for each leg and publish pwn commands
-    for (int i = 0; i < 4; ++i){
-        if(i == 0 || i == 2){
-            angles[i] = atan(v_13[2]/(39.315*2)) * (180 / M_PI);
-        } else {
-            angles[i] = atan(v_24[2]/(39.315*2)) * (180 / M_PI);
-        }
     }
+    // Back legs (phi2 and phi4)
+    // if (std::abs(rollB) < epsilon) {
+    //     double safe_asin_input = clamp((D * tan(pitch)) / (2.0 * l), -1.0, 1.0);
+    //     angles[1] = -RAD2DEG * asin(safe_asin_input);
+    //     angles[3] = -RAD2DEG * asin(safe_asin_input);
+    // } else if (rollB < 0) {
+    //     double rollB_sin = std::max(std::abs(sin(rollB)), epsilon);
+    //     angles[1] = RAD2DEG * (rollB + asin(clamp(((w - (D * tan(pitch)) / (2.0 * rollB_sin)) * rollB_sin) / l, -1.0, 1.0)));
+    //     angles[3] = -RAD2DEG * (rollB + asin(clamp(((w + (D * tan(pitch)) / (2.0 * rollB_sin)) * rollB_sin) / l, -1.0, 1.0)));
+    // } else {
+    //     double rollB_sin = std::max(std::abs(sin(rollB)), epsilon);
+    //     angles[1] = RAD2DEG * (rollB + asin(clamp(((w + (D * tan(pitch)) / (2.0 * rollB_sin)) * rollB_sin) / l, -1.0, 1.0)));
+    //     angles[3] = -RAD2DEG * (rollB + asin(clamp(((w - (D * tan(pitch)) / (2.0 * rollB_sin)) * rollB_sin) / l, -1.0, 1.0)));
+    // }
 
-    //flip angles for necessary legs
-    angles[2] = -angles[2];
-    angles[3] = -angles[3];
-
-    for (int i =0; i<4; ++i){
+    if (rollB == 0) {
+        angles[1] = -RAD2DEG * asin(D*tan(pitch) / (2.0 * l));
+        angles[3] = -RAD2DEG * asin(D*tan(pitch) / (2.0 * l));
+    } else {
+        angles[1] = RAD2DEG * (rollB + asin(((w - (D * tan(pitch)) / (2.0 * sin(rollB))) * sin(rollB)) / l));
+        angles[3] = -RAD2DEG * (rollB + asin(((w + (D * tan(pitch)) / (2.0 * sin(rollB))) * sin(rollB)) / l));
+    }
+    
+    
+    
+    
+        for (int i =0; i<4; ++i){
     //clamp angles between 45 and -45
-        angles[i] = std::clamp(angles[i], EXTENDED_ANGLE, RETRACTED_ANGLE);
+        angles[i] = clamp(angles[i], EXTENDED_ANGLE, RETRACTED_ANGLE);
 
         // Set per-leg PWM range
         int pwmMin, pwmMax;
-        if (i == 1 || i == 2) {  // legs 2 & 3 = reversed
-            pwmMin = 1880;
-            pwmMax = 1096;
-        } else {                // legs 1 & 4 = normal
-            pwmMin = 1096;
-            pwmMax = 1880;
+        if (i == 0) {  // legs 2 & 3 = reversed
+            pwmMin = 896;
+            pwmMax = 1713.75;
+        } else if (i == 1) {                // legs 1 & 4 = normal
+            pwmMin = 2070;
+            pwmMax = 1250;
+        } else if (i == 2) {                // legs 1 & 4 = normal
+            pwmMin = 2070;
+            pwmMax = 1191;
+        } else  {                // legs 1 & 4 = normal
+            pwmMin = 1000;
+            pwmMax = 1801.5;
         }
 
         // Map angle to PWM
@@ -127,12 +150,16 @@ void calculatelegCommands() {
         pwm_msg.data = pwm;
         legs[i].pub.publish(pwm_msg);
 
-        // print data to console for troubleshooting
-        ROS_INFO_STREAM(std::fixed << std::setprecision(2)
-            << "leg " << i+1
-            << " | range = " << -legs[i].z << " mm"
-            << " | angle = " << angles[i] << "°"
-            << " | pwm = " << pwm);
+        // // print data to console for troubleshooting
+        // ROS_INFO_STREAM(std::fixed << std::setprecision(2)
+        //    << " | rollF = " << rollF*RAD2DEG << "°"
+        //    << " | rollB = " << rollB*RAD2DEG << "°"
+        //    << " | Pitch = " << pitch*RAD2DEG << "°"
+        //    << " | Angle 1 = " << angles[0] << "°"
+        //    << " | Angle 2 = " << angles[1] << "°"
+        //    << " | Angle 3 = " << angles[2] << "°"
+        //    << " | Angle 4 = " << angles[3] << "°"
+        //    );
     }
 
 }
@@ -140,6 +167,12 @@ void calculatelegCommands() {
 int main(int argc, char** argv) {
     ros::init(argc, argv, "terrain_leg_controller");
     ros::NodeHandle nh;
+
+    // Subscribe to roll_value topic
+    ros::Subscriber roll_sub = nh.subscribe("roll_value", 1, rollCallback);
+
+    // Subscribe to roll_value topic
+    ros::Subscriber pitch_sub = nh.subscribe("pitch_value", 1, pitchCallback);
 
     for (size_t i = 0; i < legs.size(); ++i) {
         legs[i].sub = nh.subscribe<sensor_msgs::Range>(
@@ -149,7 +182,7 @@ int main(int argc, char** argv) {
         legs[i].pub = nh.advertise<std_msgs::UInt16>(legs[i].pwm_topic, 1);
     }
 
-    ros::Rate rate(10);
+    ros::Rate rate(100);
     while (ros::ok()) {
         ros::spinOnce();
         calculatelegCommands();

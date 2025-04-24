@@ -22,10 +22,6 @@ include_directories(
   ${catkin_INCLUDE_DIRS}
 )
 
-# Add executable for master_node
-add_executable(master src/master.cpp)
-target_link_libraries(master ${catkin_LIBRARIES})
-
 # Add executable for rangefinder
 add_executable(rangefinder src/rangefinder.cpp)
 target_link_libraries(rangefinder ${catkin_LIBRARIES})
@@ -38,15 +34,6 @@ target_link_libraries(serial ${catkin_LIBRARIES})
 add_executable(vector_incMatch src/vector_incMatch.cpp)
 target_link_libraries(vector_incMatch ${catkin_LIBRARIES})
 
-# Add executable for comProc
-add_executable(comProc src/comProc.cpp)
-target_link_libraries(comProc ${catkin_LIBRARIES})
-
-# Add executable for comProc
+# Add executable for Maestro Control
 add_executable(Maestro src/Maestro.cpp)
 target_link_libraries(Maestro ${catkin_LIBRARIES})
-
-# Add executable for comProc
-add_executable(actuator src/actuator.cpp)
-target_link_libraries(actuator ${catkin_LIBRARIES})
-

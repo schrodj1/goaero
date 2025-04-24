@@ -1,11 +1,14 @@
 #include <ros/ros.h>
 #include <std_msgs/Int32MultiArray.h>
 #include <sensor_msgs/Range.h>
+#include <std_msgs/Int32.h>  // Include for publishing single integer values
 
 ros::Publisher range_pub_leg1;
 ros::Publisher range_pub_leg2;
 ros::Publisher range_pub_leg3;
 ros::Publisher range_pub_leg4;
+ros::Publisher pitch_pub;  // New publisher for the value at index 7
+ros::Publisher roll_pub;  // New publisher for the value at index 8
 
 // Callback function to handle incoming sensor data
 void sensorCallback(const std_msgs::Int32MultiArray::ConstPtr& msg) {
@@ -49,8 +52,30 @@ void sensorCallback(const std_msgs::Int32MultiArray::ConstPtr& msg) {
                     break;
             }
         }
+    }
+
+    // Check if the array has at least 9 values to access index 8
+    if (msg->data.size() > 9) {
+        int pitch_value = msg->data[7];  // Extract the value at index 7
+
+        // Publish the value at index 7
+        std_msgs::Int32 pitch_value_msg;
+        pitch_value_msg.data = pitch_value;
+        pitch_pub.publish(pitch_value_msg);
+        ROS_INFO("IMU pitch value: %d", pitch_value);
+ 
+        int roll_value = msg->data[8];  // Extract the value at index 8
+
+        // Publish the value at index 8
+        std_msgs::Int32 roll_value_msg;
+        roll_value_msg.data = roll_value;
+        roll_pub.publish(roll_value_msg);
+        //ROS_INFO("IMU roll value: %d", roll_value);
+
+
+        // ROS_INFO("Published extra value at index 8: %d", extra_value);
     } else {
-        // ROS_WARN("Received sensor data with less than 4 values. Ignoring this message.");
+        // ROS_WARN("Received sensor data with less than 9 values. Cannot publish extra value.");
     }
 }
 
@@ -60,10 +85,15 @@ int main(int argc, char** argv) {
     ros::NodeHandle nh;
 
     // Create separate publishers for each leg's range data
-    range_pub_leg1 = nh.advertise<sensor_msgs::Range>("leg1/range", 10);
-    range_pub_leg2 = nh.advertise<sensor_msgs::Range>("leg2/range", 10);
-    range_pub_leg3 = nh.advertise<sensor_msgs::Range>("leg3/range", 10);
-    range_pub_leg4 = nh.advertise<sensor_msgs::Range>("leg4/range", 10);
+    range_pub_leg1 = nh.advertise<sensor_msgs::Range>("leg1/range", 5);
+    range_pub_leg2 = nh.advertise<sensor_msgs::Range>("leg2/range", 5);
+    range_pub_leg3 = nh.advertise<sensor_msgs::Range>("leg3/range", 5);
+    range_pub_leg4 = nh.advertise<sensor_msgs::Range>("leg4/range", 5);
+
+    // Create a publisher for the extra value at index 7
+    pitch_pub = nh.advertise<std_msgs::Int32>("pitch_value", 5);
+    // Create a publisher for the extra value at index 8
+    roll_pub = nh.advertise<std_msgs::Int32>("roll_value", 5);
 
     // Subscribe to the sensor_values topic published by the serial node
     ros::Subscriber sensor_sub = nh.subscribe("sensor_values", 10, sensorCallback);

@@ -37,7 +37,7 @@ void pwmCallback(const std_msgs::UInt16::ConstPtr& msg, int channel) {
     if (!setServoTarget(fd, channel, pwm)) {
         ROS_ERROR("Failed to send PWM to servo on channel %d", channel);
     } else {
-        ROS_INFO("Set channel %d to PWM %d", channel, pwm);
+        // ROS_INFO("Set channel %d to PWM %d", channel, pwm);
     }
 }
 
@@ -70,8 +70,8 @@ int main(int argc, char **argv) {
         return 1;
     }
 
-    cfsetispeed(&options, B9600);
-    cfsetospeed(&options, B9600);
+    cfsetispeed(&options, B115200);
+    cfsetospeed(&options, B115200);
     options.c_cflag &= ~PARENB;
     options.c_cflag &= ~CSTOPB;
     options.c_cflag &= ~CSIZE;

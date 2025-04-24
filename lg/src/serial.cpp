@@ -17,7 +17,7 @@ int initSerial(int serialPort) {
     }
 
     // Set baud rate
-    if (cfsetispeed(&options, B9600) != 0 || cfsetospeed(&options, B9600) != 0) {
+    if (cfsetispeed(&options, B115200) != 0 || cfsetospeed(&options, B115200) != 0) {
         return 2;
     }
 
@@ -39,7 +39,7 @@ int initSerial(int serialPort) {
     }
 
     return 0;
-}
+} 
 
 int main(int argc, char** argv) {
     // Initialize the ROS node
@@ -69,7 +69,7 @@ int main(int argc, char** argv) {
     std::string buffer;  // Buffer to store incoming data
     char rx_char;        // Character read from the serial port
 
-    ros::Rate loop_rate(10);  // Loop rate at 10 Hz
+    ros::Rate loop_rate(100);  // Loop rate at 100 Hz
 
     while (ros::ok()) {
         // Read one character at a time
@@ -90,6 +90,7 @@ int main(int argc, char** argv) {
 
                 // Publish the sensor values to the ROS topic
                 sensor_pub.publish(msg);
+                // ROS_INFO("Published sensor values: [%s]", buffer.c_str());
 
                 buffer.clear();  // Clear the buffer for the next message
             } else {
